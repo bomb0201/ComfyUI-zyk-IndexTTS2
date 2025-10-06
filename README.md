@@ -18,7 +18,6 @@ Original repo: https://github.com/index-tts/index-tts
 
 ## Models
 - Create `checkpoints/` in the repo root and copy the IndexTTS-2 release there (https://huggingface.co/IndexTeam/IndexTTS-2/tree/main). Missing files will be cached from Hugging Face automatically.
-  ```
 
 ## Nodes
 - **IndexTTS2 Simple** – speaker audio, text, optional emotion audio/vector; outputs audio + status string. Auto-selects device, FP16 on CUDA.
