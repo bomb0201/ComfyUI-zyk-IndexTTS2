@@ -36,17 +36,4 @@ Original repo: https://github.com/index-tts/index-tts
 ## Troubleshooting
 - Windows only so far; DeepSpeed is disabled.
 - Install `wetext` if the module is missing on first launch.
-- If w2v-bert keeps downloading, confirm `checkpoints/w2v-bert-2.0/` exists (or set `W2V_BERT_LOCAL_DIR`).
-- 404 or load failures usually mean a missing file in `checkpoints/`; re-check the tree above.
 - Emotion vector sum must stay <= 1.5.
-- BigVGAN CUDA kernel warnings are expected; PyTorch fallback kicks in automatically.
-
-## Logs you should see
-- `Loading config.json from local directory`
-- `SeamlessM4TFeatureExtractor loaded from: checkpoints/w2v-bert-2.0/`
-- Model paths pointing at your `checkpoints/` tree.
-
-
-
-
-
