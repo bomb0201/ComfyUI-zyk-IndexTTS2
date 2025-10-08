@@ -1,4 +1,4 @@
-﻿﻿ComfyUI-IndexTTS2
+﻿ComfyUI-IndexTTS2
 =================
 
 Lightweight ComfyUI wrapper for IndexTTS 2 (voice cloning + emotion control). Nodes call the upstream inference code so behaviour stays matched with the original repo.
@@ -6,6 +6,7 @@ Lightweight ComfyUI wrapper for IndexTTS 2 (voice cloning + emotion control). No
 Original repo: https://github.com/index-tts/index-tts
 
 ## Updates
+- 2025-10-08: Default FP32 with optional FP16 toggle, output gain control, and a Save Audio helper node (wav/mp3 + quality parameters).
 - 2025-09-22: Added IndexTTS2 Advanced node exposing sampling, speed, seed, and other generation controls.
 
 ## Install
@@ -20,10 +21,11 @@ Original repo: https://github.com/index-tts/index-tts
 - Create `checkpoints/` in the repo root and copy the IndexTTS-2 release there (https://huggingface.co/IndexTeam/IndexTTS-2/tree/main). Missing files will be cached from Hugging Face automatically.
 
 ## Nodes
-- **IndexTTS2 Simple** – speaker audio, text, optional emotion audio/vector; outputs audio + status string. Auto-selects device, FP16 on CUDA.
-- **IndexTTS2 Advanced** – Simple inputs plus overrides for sampling, speech speed, pauses, CFG, seed.
+- **IndexTTS2 Simple** - speaker audio, text, optional emotion audio/vector; outputs audio + status string. Default FP32, optional FP16 toggle, output gain control.
+- **IndexTTS2 Advanced** - Simple inputs plus overrides for sampling, speech speed, pauses, CFG, seed, FP16 toggle, and output gain.
 - **IndexTTS2 Emotion Vector** – eight sliders (0.0–1.4, sum <= 1.5) producing an emotion vector.
 - **IndexTTS2 Emotion From Text** – requires ModelScope and local QwenEmotion; turns short text into an emotion vector + summary.
+- **IndexTTS2 Save Audio** - saves generated audio tensors to disk with wav/mp3 options.
 
 ## Examples
 - Speaker audio -> IndexTTS2 Simple -> Preview/Save Audio
