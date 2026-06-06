@@ -600,6 +600,9 @@ class IndexTTS2:
                 print("max_text_tokens_per_segment:", max_text_tokens_per_segment)
                 print(*segments, sep="\n")
 
+            # 收集当前 part 内所有 seg 生成的音频
+            part_wavs = []
+
             for seg_idx, sent in enumerate(segments):
                 self._set_gr_progress(0.2 + 0.7 * seg_idx / segments_count,
                                       f"speech synthesis {seg_idx + 1}/{segments_count}...")
@@ -728,18 +731,23 @@ class IndexTTS2:
                     if verbose:
                         print(f"wav shape: {wav.shape}", "min:", wav.min(), "max:", wav.max())
                     # wavs.append(wav[:, :-512])
-                    wavs.append(wav.cpu())  # to cpu before saving
+                    part_wavs.append(wav.cpu())  # to cpu before saving
                     if stream_return:
                         yield wav.cpu()
                         if silence is None:
-                            silence = self.interval_silence(wavs, sampling_rate=sampling_rate, interval_silence=interval_silence)
+                            silence = self.interval_silence(part_wavs, sampling_rate=sampling_rate, interval_silence=interval_silence)
                         yield silence
 
-            # 如果此片段有自定义停顿时间，在片段之间插入静音
+            # 将当前 part 内所有 seg 用 interval_silence 拼接起来
+            part_audio = self.insert_interval_silence(part_wavs, sampling_rate=sampling_rate, interval_silence=interval_silence)
+            part_audio = torch.cat(part_audio, dim=1)
+            wavs.append(part_audio)
+
+            # 如果需要自定义停顿，在 part 之间插入静音（不会被 interval_silence 重复包裹）
             if trailing_pause_ms > 0 and part_idx < total_parts - 1:
                 sil_dur = int(sampling_rate * trailing_pause_ms / 1000.0)
                 if sil_dur > 0:
-                    channel_size = wavs[-1].size(0) if wavs and wavs[-1].dim() >= 2 else 1
+                    channel_size = part_audio.size(0)
                     silence_tensor = torch.zeros(channel_size, sil_dur)
                     wavs.append(silence_tensor)
                     if verbose:
@@ -748,7 +756,6 @@ class IndexTTS2:
         end_time = time.perf_counter()
 
         self._set_gr_progress(0.9, "saving audio...")
-        wavs = self.insert_interval_silence(wavs, sampling_rate=sampling_rate, interval_silence=interval_silence)
         wav = torch.cat(wavs, dim=1)
         wav_length = wav.shape[-1] / sampling_rate
         print(f">> gpt_gen_time: {gpt_gen_time:.2f} seconds")
