@@ -23,6 +23,7 @@ omegaconf
 sentencepiece
 tqdm
 textstat
+deepfilternet
 
 # pynini==2.1.6; platform_system!="Windows"
 # WeTextProcessing>=1.0.3; platform_system!="Windows"

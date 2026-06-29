@@ -329,7 +329,7 @@ def _save_wav(path: str, wav_cn: np.ndarray, sr: int):
 
 _install_unload_hook()
 
-class IndexTTS2Simple:
+class ZYK_IndexTTS2Simple:
     @classmethod
     def INPUT_TYPES(cls):
         return {
@@ -348,7 +348,7 @@ class IndexTTS2Simple:
 
     RETURN_TYPES = ("AUDIO", "STRING")
     FUNCTION = "synthesize"
-    CATEGORY = "Audio/IndexTTS"
+    CATEGORY = "zyk-Audio/IndexTTS"
 
     def synthesize(self,
                    audio,

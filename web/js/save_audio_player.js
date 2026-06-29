@@ -9,7 +9,7 @@ function ensureStyles() {
   stylesInjected = true;
   const style = document.createElement('style');
   style.textContent = `
-.indextts2-audio-player {
+.zyk-indextts2-audio-player {
   position: absolute;
   z-index: 12;
   pointer-events: auto;
@@ -24,15 +24,15 @@ function ensureStyles() {
   min-width: 180px;
   transition: opacity 0.2s ease, filter 0.2s ease;
 }
-.indextts2-audio-player[data-state="inactive"] {
+.zyk-indextts2-audio-player[data-state="inactive"] {
   opacity: 0.9;
 }
-.indextts2-audio-player[data-state="inactive"] audio {
+.zyk-indextts2-audio-player[data-state="inactive"] audio {
   pointer-events: none;
   filter: grayscale(0.8);
   opacity: 0.42;
 }
-.indextts2-audio-player__title {
+.zyk-indextts2-audio-player__title {
   font-size: 11px;
   font-weight: 600;
   color: var(--descrip-text, #c7c7c7);
@@ -95,9 +95,9 @@ function setState(container, audioEl, titleEl, clip) {
 }
 
 app.registerExtension({
-  name: 'IndexTTS2.SaveAudioPlayer',
+  name: 'zyk-IndexTTS2.SaveAudioPlayer',
   beforeRegisterNodeDef(nodeType, nodeData) {
-    if (nodeData?.name !== 'IndexTTS2SaveAudio') {
+    if (nodeData?.name !== 'zyk-IndexTTS2SaveAudio') {
       return;
     }
 
@@ -108,10 +108,10 @@ app.registerExtension({
       ensureStyles();
 
       const container = document.createElement('div');
-      container.className = 'indextts2-audio-player';
+      container.className = 'zyk-indextts2-audio-player';
 
       const title = document.createElement('div');
-      title.className = 'indextts2-audio-player__title';
+      title.className = 'zyk-indextts2-audio-player__title';
       title.textContent = 'No audio yet';
 
       const audio = document.createElement('audio');
@@ -123,8 +123,8 @@ app.registerExtension({
       document.body.appendChild(container);
 
       const widget = {
-        name: 'indextts2_audio_widget',
-        type: 'indextts2_audio_widget',
+        name: 'zyk_indextts2_audio_widget',
+        type: 'zyk_indextts2_audio_widget',
         draw(ctx, node, widgetWidth, y) {
           if (!container.isConnected) {
             document.body.appendChild(container);

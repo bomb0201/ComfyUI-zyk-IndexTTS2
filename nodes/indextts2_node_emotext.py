@@ -26,7 +26,7 @@ def _get_qwen(model_dir: str):
     _QWEN_CACHE = qwen
     return qwen
 
-class IndexTTS2EmotionFromText:
+class ZYK_IndexTTS2EmotionFromText:
     @classmethod
     def INPUT_TYPES(cls):
         return {
@@ -37,7 +37,7 @@ class IndexTTS2EmotionFromText:
 
     RETURN_TYPES = ("EMOTION_VECTOR", "STRING")
     FUNCTION = "build"
-    CATEGORY = "Audio/IndexTTS"
+    CATEGORY = "zyk-Audio/IndexTTS"
 
     def build(self, text: str) -> Tuple[list, str]:
         if not isinstance(text, str) or len(text.strip()) == 0:

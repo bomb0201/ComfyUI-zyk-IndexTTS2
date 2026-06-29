@@ -1,7 +1,7 @@
 from typing import Tuple
 
 
-class IndexTTS2EmotionVector:
+class ZYK_IndexTTS2EmotionVector:
     @classmethod
     def INPUT_TYPES(cls):
         slider = {"min": 0.0, "max": 1.4, "step": 0.05}
@@ -20,7 +20,7 @@ class IndexTTS2EmotionVector:
 
     RETURN_TYPES = ("EMOTION_VECTOR",)
     FUNCTION = "build"
-    CATEGORY = "Audio/IndexTTS"
+    CATEGORY = "zyk-Audio/IndexTTS"
 
     def build(self,
               happy: float,

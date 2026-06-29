@@ -3,7 +3,7 @@ from typing import List
 import numpy as np
 import folder_paths
 
-class IndexTTS2SaveAudio:
+class ZYK_IndexTTS2SaveAudio:
     def __init__(self):
         self._ui_type = "output"
 
@@ -27,7 +27,7 @@ class IndexTTS2SaveAudio:
     RETURN_TYPES: tuple = ()
     FUNCTION = "save"
     OUTPUT_NODE = True
-    CATEGORY = "Audio/IndexTTS"
+    CATEGORY = "zyk-Audio/IndexTTS"
 
     def _normalize(self, mono: np.ndarray):
         peak = float(np.max(np.abs(mono))) if mono.size else 0.0

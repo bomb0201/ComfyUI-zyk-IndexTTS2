@@ -96,7 +96,7 @@ def _coerce_bool(value, default=False):
     return bool(value)
 
 
-class IndexTTS2Advanced:
+class ZYK_IndexTTS2Advanced:
     @classmethod
     def INPUT_TYPES(cls):
         return {
@@ -130,7 +130,7 @@ class IndexTTS2Advanced:
 
     RETURN_TYPES = ("AUDIO", "STRING")
     FUNCTION = "synthesize"
-    CATEGORY = "Audio/IndexTTS"
+    CATEGORY = "zyk-Audio/IndexTTS"
 
     def synthesize(self,
                    audio,
