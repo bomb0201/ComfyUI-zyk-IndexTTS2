@@ -1,4 +1,4 @@
-﻿zyk-ComfyUI-IndexTTS2
+﻿ComfyUI-zyk-IndexTTS2
 =================
 
 Lightweight ComfyUI wrapper for IndexTTS 2 (voice cloning + emotion control) — **zyk fork**. Nodes call the upstream inference code so behaviour stays matched with the original repo.
