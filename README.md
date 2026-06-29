@@ -21,12 +21,13 @@ Original repo: https://github.com/index-tts/index-tts
   pip install wetext
   pip install -r requirements.txt
   ```
-- The **Denoise** node requires `deepfilternet`, which needs the **Rust** toolchain to compile its core library:
+- **Optional** — The **Denoise** node requires `deepfilternet`, which needs the **Rust** toolchain on Windows:
   ```bash
   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
   source "$HOME/.cargo/env"
   pip install deepfilternet
   ```
+  If you don't need the Denoise node, you can skip this step — the other nodes work fine without it.
 
 ## Models
 - Create `checkpoints/` in the repo root and copy the IndexTTS-2 release there (https://huggingface.co/IndexTeam/IndexTTS-2/tree/main). Missing files will be cached from Hugging Face automatically.

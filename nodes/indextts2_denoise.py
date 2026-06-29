@@ -240,13 +240,23 @@ class ZYK_IndexTTS2Denoise:
             self._current_model_name = model_name
             return
 
+        # Verify deepfilternet is installed
+        try:
+            from df.enhance import init_df, enhance
+            import df.config as df_config
+            import logging
+        except ImportError as e:
+            raise RuntimeError(
+                f"deepfilternet is not installed. The Denoise node requires it.\n"
+                f"  Install with: pip install deepfilternet\n"
+                f"  On Windows, the Rust toolchain is also needed: https://rustup.rs\n"
+                f"  Missing module: {e.name}"
+            )
+
         # Get model directory (downloads if needed)
         model_dir = _get_or_download_model(model_name)
 
         try:
-            from df.enhance import init_df
-            import logging
-
             # Suppress deepfilternet logging
             logging.getLogger("df").setLevel(logging.WARNING)
 
@@ -270,6 +280,7 @@ class ZYK_IndexTTS2Denoise:
             raise RuntimeError(
                 f"Failed to load denoise model '{model_name}'. "
                 f"Make sure 'deepfilternet' is installed (pip install deepfilternet). "
+                f"On Windows, the Rust toolchain is also needed: https://rustup.rs\n"
                 f"Error: {e}"
             )
 
@@ -286,6 +297,8 @@ class ZYK_IndexTTS2Denoise:
             self._load_model(model)
 
         from df.enhance import enhance
+        from df.config import config as df_config
+        from df.model import ModelParams
 
         # Convert to torch tensor [channels, samples]
         audio_t = torch.from_numpy(wav).float()
@@ -314,8 +327,6 @@ class ZYK_IndexTTS2Denoise:
         # Apply post-filter via DeepFilterNet's global config.
         # Set before each enhance() call to handle toggling between calls.
         try:
-            from df.config import config as df_config
-            from df.model import ModelParams
             df_config.set("mask_pf", bool(post_filter), bool, ModelParams().section)
         except Exception:
             pass
