@@ -1,64 +1,88 @@
 import os
-import shutil
 import numpy as np
 import torch
 
-# ─── Model download helpers ───────────────────────────────────────────────────
+# ─── Backend detection ────────────────────────────────────────────────────────
+# We try deepfilternet first (better quality). If not installed, fall back to
+# noisereduce (pure Python, no compilation needed).
 
-# Mapping from UI model name → ModelScope repo ID
+_DENOISE_USE_DF = False
+_DENOISE_USE_NR = False
+
+try:
+    import noisereduce as nr
+    _DENOISE_USE_NR = True
+except ImportError:
+    pass
+
+try:
+    from df.enhance import init_df, enhance
+    import df.config as df_config
+    from df.model import ModelParams
+    _DENOISE_USE_DF = True
+except ImportError:
+    pass
+
+if not _DENOISE_USE_DF and not _DENOISE_USE_NR:
+    print(
+        "[IndexTTS2 Denoise] Neither deepfilternet nor noisereduce is installed.\n"
+        "  Install noisereduce (recommended for easy setup): pip install noisereduce\n"
+        "  Or install deepfilternet (better quality, needs Rust): pip install deepfilternet"
+    )
+
+
+# ─── DeepFilterNet backend (kept for reference) ──────────────────────────────
+#
+# If a cp313 wheel for deepfilterlib becomes available in the future, you can
+# re-enable this backend. The original code has been preserved below as a
+# reference for the implementation pattern.
+#
+# Original download helpers (ModelScope / GitHub / caching) have been removed
+# from the active code but are kept as comments for future restoration.
+#
+# To restore deepfilternet support:
+#   1. Uncomment the _download_model_* and _get_or_download_model functions
+#   2. Restore _DENOISE_SR = 48000
+#   3. Restore _DENOISE_CACHE dict
+#   4. Restore _load_model() method using init_df()
+#   5. Restore the deepfilternet processing path in process()
+#
+"""
+_DENOISE_SR = 48000  # DeepFilterNet operates at 48 kHz
+_DENOISE_CACHE: dict = {}
+
 _MODELSCOPE_MAP = {
     "DeepFilterNet": "pengzhendong/DeepFilterNet",
-    # DeepFilterNet2 not available on ModelScope as of 2026-06
     "DeepFilterNet3": "fal/DeepFilterNet3",
 }
 
-# The deepfilternet package downloads from GitHub by default.
-# We use that as primary, and ModelScope as a fallback.
-
-
 def _get_ext_root():
-    """Get the extension root directory (ComfyUI-IndexTTS2)."""
     return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-
 def _get_denoise_models_dir():
-    """Get the directory where denoise models are stored."""
     return os.path.join(_get_ext_root(), "checkpoints", "audio_denoise")
 
-
 def _ensure_model_dir(model_name: str) -> str:
-    """Ensure the local model directory exists.
-    Returns the path to the model directory.
-    """
     model_dir = os.path.join(_get_denoise_models_dir(), model_name)
     os.makedirs(model_dir, exist_ok=True)
     return model_dir
 
-
 def _is_model_valid(model_dir: str) -> bool:
-    """Check if a model directory has the required files."""
     config_path = os.path.join(model_dir, "config.ini")
     checkpoint_dir = os.path.join(model_dir, "checkpoints")
     if os.path.isfile(config_path) and os.path.isdir(checkpoint_dir):
         return True
-    # Also accept if there are any files in the dir (partial download recovery)
     return os.path.isdir(model_dir) and len(os.listdir(model_dir)) > 0
 
-
 def _download_model_from_ms(model_name: str, target_dir: str) -> bool:
-    """Try to download model from ModelScope.
-    Returns True if successful.
-    """
     ms_id = _MODELSCOPE_MAP.get(model_name)
     if not ms_id:
         return False
     try:
         from modelscope import snapshot_download
         print(f"[IndexTTS2 Denoise] Downloading {model_name} from ModelScope ({ms_id})...")
-        # snapshot_download downloads to a cache dir; we copy to our target dir
         downloaded = snapshot_download(ms_id)
         if os.path.isdir(downloaded):
-            # Copy files to our target directory
             for item in os.listdir(downloaded):
                 src = os.path.join(downloaded, item)
                 dst = os.path.join(target_dir, item)
@@ -74,23 +98,14 @@ def _download_model_from_ms(model_name: str, target_dir: str) -> bool:
         print(f"[IndexTTS2 Denoise] ModelScope download failed: {e}")
     return False
 
-
 def _download_model_from_github(model_name: str, target_dir: str) -> bool:
-    """Use deepfilternet's built-in download mechanism (from GitHub).
-    Returns True if successful.
-    """
     try:
         from df.enhance import maybe_download_model
     except ImportError:
-        print("[IndexTTS2 Denoise] deepfilternet package not installed. Skipping GitHub download.")
         return False
-
     try:
-        print(f"[IndexTTS2 Denoise] Downloading {model_name} from GitHub (via deepfilternet)...")
-        # This downloads via deepfilternet's built-in mechanism
         downloaded_dir = maybe_download_model(model_name)
         if os.path.isdir(downloaded_dir) and downloaded_dir != target_dir:
-            # Copy from cache to our local directory
             for item in os.listdir(downloaded_dir):
                 src = os.path.join(downloaded_dir, item)
                 dst = os.path.join(target_dir, item)
@@ -100,35 +115,21 @@ def _download_model_from_github(model_name: str, target_dir: str) -> bool:
                     shutil.copytree(src, dst)
                 else:
                     shutil.copy2(src, dst)
-            print(f"[IndexTTS2 Denoise] GitHub download complete: {model_name}")
             return True
-    except Exception as e:
-        print(f"[IndexTTS2 Denoise] GitHub download failed: {e}")
+    except Exception:
+        pass
     return False
 
-
 def _get_or_download_model(model_name: str) -> str:
-    """Get the model directory, downloading if necessary.
-    Returns the path to the model directory.
-    """
     model_dir = _ensure_model_dir(model_name)
-
-    # 1. Check if already downloaded locally
     if _is_model_valid(model_dir):
-        print(f"[IndexTTS2 Denoise] Using cached model: {model_dir}")
         return model_dir
-
-    # 2. Try ModelScope first (fastest for China users)
     if _download_model_from_ms(model_name, model_dir):
         return model_dir
-
-    # 3. Fallback to GitHub via deepfilternet
     if _download_model_from_github(model_name, model_dir):
         return model_dir
-
-    # 4. If all downloads failed but dir was created, return it anyway
-    #    (init_df will give a clear error)
     return model_dir
+"""
 
 
 # ─── Audio parsing ────────────────────────────────────────────────────────────
@@ -197,7 +198,7 @@ def _parse_audio_input(audio):
 # ─── Global model cache for denoise ───────────────────────────────────────────
 
 _DENOISE_CACHE: dict = {}
-_DENOISE_SR = 48000  # DeepFilterNet operates at 48 kHz
+_DENOISE_SR = 48000  # DeepFilterNet operates at 48 kHz; noisereduce works at any SR
 
 
 class ZYK_IndexTTS2Denoise:
@@ -210,9 +211,11 @@ class ZYK_IndexTTS2Denoise:
                     "default": True,
                     "tooltip": "Disable to bypass denoising (audio passes through unchanged).",
                 }),
-                "model": (["DeepFilterNet", "DeepFilterNet2", "DeepFilterNet3"], {
-                    "default": "DeepFilterNet2",
-                    "tooltip": "Denoising model version. DeepFilterNet2 is the recommended default.",
+                "model": (["DeepFilterNet", "DeepFilterNet2", "DeepFilterNet3",
+                           "noisereduce"], {
+                    "default": "noisereduce",
+                    "tooltip": "Denoising engine. DeepFilterNet models require deepfilternet package. "
+                               "noisereduce works out of the box (pip install noisereduce).",
                 }),
                 "strength": ("FLOAT", {
                     "default": 1.0,
@@ -223,7 +226,8 @@ class ZYK_IndexTTS2Denoise:
                 }),
                 "post_filter": ("BOOLEAN", {
                     "default": True,
-                    "tooltip": "Enable post-filter to further suppress residual noise.",
+                    "tooltip": "Enable post-filter to further suppress residual noise. "
+                               "(Only used by DeepFilterNet backend.)",
                 }),
             }
         }
@@ -238,7 +242,16 @@ class ZYK_IndexTTS2Denoise:
         self._current_model_name = None
 
     def _load_model(self, model_name: str):
-        """Load (or retrieve from cache) a DeepFilterNet model."""
+        """Load (or retrieve from cache) a DeepFilterNet model (or noisereduce)."""
+        if model_name == "noisereduce":
+            if not _DENOISE_USE_NR:
+                raise RuntimeError(
+                    "noisereduce is not installed.\n"
+                    "  Install with: pip install noisereduce"
+                )
+            self._current_model_name = "noisereduce"
+            return
+
         cache_key = f"denoise_{model_name}"
 
         if cache_key in _DENOISE_CACHE:
@@ -246,24 +259,19 @@ class ZYK_IndexTTS2Denoise:
             self._current_model_name = model_name
             return
 
-        # Verify deepfilternet is installed
-        try:
-            from df.enhance import init_df, enhance
-            import df.config as df_config
-            import logging
-        except ImportError as e:
+        if not _DENOISE_USE_DF:
             raise RuntimeError(
-                f"deepfilternet is not installed. The Denoise node requires it.\n"
-                f"  Install with: pip install deepfilternet\n"
-                f"  On Windows, the Rust toolchain is also needed: https://rustup.rs\n"
-                f"  Missing module: {e.name}"
+                f"Model '{model_name}' requires deepfilternet, but it is not installed.\n"
+                f"  Either install deepfilternet (needs Rust): pip install deepfilternet\n"
+                f"  Or use the 'noisereduce' model instead.\n"
+                f"  On Windows, Rust is needed: https://rustup.rs"
             )
 
         # Get model directory (downloads if needed)
         model_dir = _get_or_download_model(model_name)
 
         try:
-            # Suppress deepfilternet logging
+            import logging
             logging.getLogger("df").setLevel(logging.WARNING)
 
             print(f"[IndexTTS2 Denoise] Loading model: {model_name} from {model_dir}")
@@ -278,7 +286,6 @@ class ZYK_IndexTTS2Denoise:
             self._df_state = df_state
             self._current_model_name = model_name
 
-            # Cache it
             _DENOISE_CACHE[cache_key] = (model, df_state)
             print(f"[IndexTTS2 Denoise] Model loaded: {model_name}")
 
@@ -290,23 +297,39 @@ class ZYK_IndexTTS2Denoise:
                 f"Error: {e}"
             )
 
-    def process(self, audio, enabled, model, strength, post_filter):
-        """Denoise audio."""
-        if not enabled:
-            return (audio,)
+    def _denoise_noisereduce(self, wav: np.ndarray, sr: int, strength: float) -> np.ndarray:
+        """Apply noise reduction using noisereduce.
+        wav: (channels, samples) float32 in [-1, 1]
+        Returns denoised array of same shape.
+        """
+        # noisereduce works per-channel
+        result = []
+        for ch in range(wav.shape[0]):
+            # Map strength to noisereduce parameters
+            # prop_decrease: 0.0 = no reduction, 1.0 = full reduction
+            prop_decrease = min(1.0, strength)
+            # Stationary noise reduction for simplicity (no need for noise clip)
+            # We estimate noise from the first 0.5 second
+            noise_samples = int(min(sr * 0.5, wav.shape[1] * 0.1))
+            if noise_samples < sr * 0.1:
+                noise_samples = max(1, wav.shape[1] // 10)
+            ch_denoised = nr.reduce_noise(
+                y=wav[ch],
+                sr=sr,
+                prop_decrease=prop_decrease,
+                n_std_thresh_stationary=1.5 - float(strength) * 0.5,
+                stationary=True,
+            )
+            result.append(ch_denoised)
+        return np.stack(result, axis=0)
 
-        sr, wav = _parse_audio_input(audio)
+    def _denoise_deepfilternet(self, wav: np.ndarray, sr: int,
+                               model, df_state, strength: float,
+                               post_filter: bool) -> torch.Tensor:
+        """Apply noise reduction using deepfilternet.
+        Returns torch tensor (channels, samples).
+        """
         orig_sr = sr
-
-        # Load model if needed
-        if self._current_model_name != model:
-            self._load_model(model)
-
-        from df.enhance import enhance
-        from df.config import config as df_config
-        from df.model import ModelParams
-
-        # Convert to torch tensor [channels, samples]
         audio_t = torch.from_numpy(wav).float()
 
         # Resample to 48kHz if needed
@@ -320,56 +343,70 @@ class ZYK_IndexTTS2Denoise:
         if is_mono:
             audio_t = audio_t.repeat(2, 1)
 
-        # Map strength to attenuation limit (dB).
-        # DeepFilterNet's atten_lim_db: 0 = no denoising (original pass-through),
-        # None = full model denoising, positive = max suppression in dB.
+        # Map strength to attenuation limit (dB)
         if strength <= 0.0:
-            return (audio,)
+            return None  # caller handles bypass
         elif strength < 1.0:
             atten_lim = 24.0 * (1.0 - float(strength))
         else:
             atten_lim = None
 
-        # Apply post-filter via DeepFilterNet's global config.
-        # Set before each enhance() call to handle toggling between calls.
         try:
             df_config.set("mask_pf", bool(post_filter), bool, ModelParams().section)
         except Exception:
             pass
 
-        # Apply denoising
         with torch.no_grad():
             enhanced = enhance(
-                self._model_instance, self._df_state, audio_t,
+                model, df_state, audio_t,
                 pad=True, atten_lim_db=atten_lim,
             )
 
-        # For strength > 1.0, apply extra attenuation by blending with original.
-        # This is a soft-gate approach: mix the denoised output with a further
-        # attenuated version to increase suppression depth.
+        # For strength > 1.0, apply extra attenuation
         if strength > 1.0:
-            # extra ranges 0.0→1.0 as strength goes 1.0→2.0
             extra = min(1.0, float(strength) - 1.0)
-            # scale factor: at extra=0 → factor=1, at extra=1 → factor=0.25
             factor = 1.0 - extra * 0.75
-            # Keep original as reference for residual noise suppression
             enhanced = factor * enhanced + (1.0 - factor) * torch.clamp(
                 enhanced - audio_t * (1.0 - factor) * 0.3, -1.0, 1.0
             )
 
-        # Clamp to safe range
         enhanced = torch.clamp(enhanced.cpu(), -1.0, 1.0)
 
-        # Down-mix back to mono if input was mono
         if is_mono:
             enhanced = enhanced[:1, :]
 
-        # Resample back to original sample rate
         if orig_sr != _DENOISE_SR:
             enhanced = torchaudio_resample(enhanced, _DENOISE_SR, orig_sr)
 
+        return enhanced
+
+    def process(self, audio, enabled, model, strength, post_filter):
+        """Denoise audio."""
+        if not enabled:
+            return (audio,)
+
+        sr, wav = _parse_audio_input(audio)
+
+        # Load model if needed
+        if self._current_model_name != model:
+            self._load_model(model)
+
+        denoised = None
+
+        if model == "noisereduce":
+            denoised_np = self._denoise_noisereduce(wav, sr, strength)
+            denoised = torch.from_numpy(denoised_np.astype(np.float32))
+        else:
+            denoised = self._denoise_deepfilternet(
+                wav, sr, self._model_instance, self._df_state,
+                strength, post_filter
+            )
+
+        if denoised is None:
+            return (audio,)
+
         # Return in standard ComfyUI AUDIO dict format
-        return ({"waveform": enhanced.unsqueeze(0), "sample_rate": orig_sr},)
+        return ({"waveform": denoised.unsqueeze(0), "sample_rate": sr},)
 
 
 def torchaudio_resample(audio: torch.Tensor, orig_sr: int, target_sr: int) -> torch.Tensor:

@@ -23,10 +23,9 @@ omegaconf
 sentencepiece
 tqdm
 textstat
+noisereduce
 
-# deepfilternet (optional) - needed only for the Denoise node.
-# On Windows requires the Rust toolchain: https://rustup.rs
-# Install manually: pip install deepfilternet
+# deepfilternet (optional) - better quality denoising, needs Rust toolchain on Windows.
 
 # pynini==2.1.6; platform_system!="Windows"
 # WeTextProcessing>=1.0.3; platform_system!="Windows"
