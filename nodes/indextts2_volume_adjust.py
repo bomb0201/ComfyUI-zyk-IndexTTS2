@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 
 
 def _parse_audio_input(audio):
@@ -112,4 +113,6 @@ class ZYK_IndexTTS2VolumeAdjust:
             # Hard clip at 1.0 to prevent extreme values downstream
             wav = np.clip(wav, -1.0, 1.0)
 
-        return ((sr, wav.astype(np.float32)),)
+        # Return in standard ComfyUI AUDIO dict format
+        waveform = torch.from_numpy(wav.astype(np.float32)).unsqueeze(0)  # (1, C, T)
+        return ({"waveform": waveform, "sample_rate": sr},)

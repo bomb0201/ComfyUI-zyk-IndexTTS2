@@ -250,7 +250,11 @@ def _audio_to_temp_wav(audio: Any) -> Tuple[str, int, bool]:
                 sr, data = int(b), a
 
     if sr is None and isinstance(audio, dict):
-        sr = audio.get("sample_rate") or audio.get("sr") or audio.get("rate")
+        sr = audio.get("sample_rate")
+        if sr is None:
+            sr = audio.get("sr")
+        if sr is None:
+            sr = audio.get("rate")
         for key in ("waveform", "samples", "audio", "data"):
             if key in audio:
                 data = audio[key]
