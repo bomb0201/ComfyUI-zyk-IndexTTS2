@@ -22,8 +22,14 @@ def _parse_audio_input(audio):
             elif isinstance(b, (int, np.integer)) and hasattr(a, "shape"):
                 sr, data = int(b), a
     elif isinstance(audio, dict):
-        sr = audio.get("sample_rate") or audio.get("sr")
-        data = audio.get("waveform") or audio.get("samples") or audio.get("data")
+        sr = audio.get("sample_rate")
+        if sr is None:
+            sr = audio.get("sr")
+        data = audio.get("waveform")
+        if data is None:
+            data = audio.get("samples")
+        if data is None:
+            data = audio.get("data")
 
     if sr is None or data is None:
         raise ValueError(f"Invalid AUDIO input. Expected (sample_rate, numpy_array) tuple, got {type(audio).__name__}")
