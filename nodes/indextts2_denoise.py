@@ -211,8 +211,7 @@ class ZYK_IndexTTS2Denoise:
                     "default": True,
                     "tooltip": "Disable to bypass denoising (audio passes through unchanged).",
                 }),
-                "model": (["DeepFilterNet", "DeepFilterNet2", "DeepFilterNet3",
-                           "noisereduce"], {
+                "model": (["noisereduce", "DeepFilterNet", "DeepFilterNet2", "DeepFilterNet3"], {
                     "default": "noisereduce",
                     "tooltip": "Denoising engine. DeepFilterNet models require deepfilternet package. "
                                "noisereduce works out of the box (pip install noisereduce).",
