@@ -581,6 +581,17 @@ class IndexTTS2:
             if has_pause_tags and verbose:
                 print(f"\n--- Pause segment {part_idx + 1}/{total_parts} (pause after: {trailing_pause_ms}ms) ---")
 
+            # 空文本片段（如开头停顿）：直接生成静音，跳过 TTS 推理
+            if not part_text.strip():
+                channel_size = 1  # mono, will be handled later
+                sil_dur = int(sampling_rate * trailing_pause_ms / 1000.0)
+                if sil_dur > 0:
+                    silence_chunk = torch.zeros(1, sil_dur)
+                    wavs.append(silence_chunk)
+                    if has_pause_tags and verbose:
+                        print(f">> Inserted leading pause: {trailing_pause_ms}ms")
+                continue
+
             text_tokens_list = self.tokenizer.tokenize(part_text)
             try:
                 segments = self.tokenizer.split_segments(text_tokens_list, max_text_tokens_per_segment, quick_streaming_tokens=quick_streaming_tokens)
@@ -743,8 +754,8 @@ class IndexTTS2:
             part_audio = torch.cat(part_audio, dim=1)
             wavs.append(part_audio)
 
-            # 如果需要自定义停顿，在 part 之间插入静音（不会被 interval_silence 重复包裹）
-            if trailing_pause_ms > 0 and part_idx < total_parts - 1:
+            # 如果需要自定义停顿，在 part 之间或末尾插入静音
+            if trailing_pause_ms > 0:
                 sil_dur = int(sampling_rate * trailing_pause_ms / 1000.0)
                 if sil_dur > 0:
                     channel_size = part_audio.size(0)
@@ -804,6 +815,7 @@ def parse_pause_tags(text: str):
 
     返回 [(文本片段, 停顿毫秒数), ...] 的列表。
     例如: "你好<rf_pause:200ms>世界" → [("你好", 200), ("世界", 0)]
+    例如: "<rf_pause:1000ms>你好" → [("", 1000), ("你好", 0)]
     如果没有匹配到任何标签，返回 [(原文本, 0)]。
     """
     pattern = re.compile(r'<rf_pause:(\d+)\s*ms\s*>', re.IGNORECASE)
@@ -819,7 +831,9 @@ def parse_pause_tags(text: str):
             if segments:
                 prev_text, prev_pause = segments[-1]
                 segments[-1] = (prev_text, prev_pause + pause_ms)
-            # 前无片段时忽略开头的停顿
+            else:
+                # 文本开头第一个标签：创建空文本片段携带停顿
+                segments.append(("", pause_ms))
         last_end = match.end()
     # 剩余文本
     tail = text[last_end:]

@@ -59,6 +59,21 @@ Original repo: https://github.com/index-tts/index-tts
 | Denoise | `post_filter` | BOOLEAN | — | True | Extra residual noise suppression |
 
 ## Examples
+
+### 自定义停顿标签
+
+在文本中插入 `<rf_pause:Xms>` 标签可以控制语音停顿，其中 `X` 是停顿毫秒数。
+
+| 用法 | 示例 | 效果 |
+|------|------|------|
+| 开头停顿 | `"<rf_pause:1000ms>你好"` | 先停顿 1 秒，再开始说话 |
+| 句间停顿 | `"你好<rf_pause:500ms>世界"` | 说"你好"后停顿 500ms，再说"世界" |
+| 结尾停顿 | `"你好<rf_pause:1000ms>"` | 说完"你好"后停顿 1 秒再结束 |
+| 连续停顿 | `"你好<rf_pause:300ms><rf_pause:200ms>世界"` | 连续标签的停顿时间累加（共 500ms） |
+
+> 注意：停顿时长单位仅支持毫秒（ms），标签大小写不敏感。支持在文本的**开头、中间、结尾**任意位置使用。
+
+### Workflow 示例
 - Speaker audio -> zyk-IndexTTS2 Simple -> Preview/Save Audio
 - Speaker + emotion audio -> zyk-IndexTTS2 Simple -> Save
 - Emotion Vector -> zyk-IndexTTS2 Simple -> Save
